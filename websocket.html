@@ -1,0 +1,126 @@
+<!DOCTYPE html> 
+<meta charset="utf-8" /> 
+<title>WebSocket Test</title> 
+<script> 
+    var wsUri ="ws://127.0.0.1:4444";
+    var output; 
+    var friends;
+    
+    function init() {
+        output = document.getElementById("output");
+        testWebSocket();
+    } 
+  
+    function testWebSocket() {
+        websocket = new WebSocket(wsUri);
+        websocket.onopen = function(evt) {
+            onOpen(evt)
+        };
+        websocket.onclose = function(evt) {
+            onClose(evt)
+        };
+        websocket.onmessage = function(evt) {
+            onMessage(evt)
+        };
+        websocket.onerror = function(evt) {
+            onError(evt)
+        };
+    } 
+  
+    function onOpen(evt) {
+        writeToScreen("CONNECTED");
+        //doSend("WebSocket rocks");
+    } 
+  
+    function onClose(evt) {
+        writeToScreen("DISCONNECTED");
+    } 
+  
+    function onMessage(evt) {
+        writeToScreen('<span style="color: blue;">RESPONSE: '+ evt.data+'</span>');
+        //websocket.close();
+        if (typeof evt.data == "string") {
+            recvMsg(evt.data);
+        }
+        else {
+            console.log("非文本消息");
+            console.log(evt.data);
+        }
+    } 
+  
+    function onError(evt) {
+        writeToScreen('<span style="color: red;">ERROR:</span> '+ evt.data);
+    } 
+    
+    function writeToScreen(message) {
+        var pre = document.createElement("p");
+        pre.style.wordWrap = "break-word";
+        pre.innerHTML = message;
+        output.appendChild(pre);
+    } 
+    /* message :
+     0. S -> C:     {"id":"%X"}
+     1. C <-> S:    {"from":"ID_src","to":"ID_dst","msg":"%s"}
+     2. C <-> S:    {"from":"ID_src","to":"all","msg":"%s"}
+     3. S -> C:     {"friends":["all", "%X", "%X"]}
+     4. C-> S:      getFriends
+     */
+    function recvMsg(data)
+    {
+        dataObj = JSON.parse(data);
+        if (dataObj.hasOwnProperty("from")) {
+            //writeToScreen(data);
+        }
+        else if (dataObj.hasOwnProperty("friends")) {
+            friends = dataObj.friends;
+            var friend = document.getElementById("friend");
+            //clear select
+            friend.options.length = 0;
+            for (var i=0; i<dataObj.friends.length; i++) {
+                var item = new Option("ID " + dataObj.friends[i], i);
+                friend.options.add(item);
+            }
+        }
+        else if (dataObj.hasOwnProperty("id")) {
+            document.getElementById("id").innerText = dataObj.id;
+        }
+    }
+    
+    function sendMsg()
+    {
+        var id = document.getElementById("id").innerText;
+        //var dest = document.getElementById("dest").value;
+        var objdest = document.getElementById("friend");
+        var dest = friends[objdest.value];
+        var msg = document.getElementById("msg").value;
+        var msg_to_send = {'from':id,'to':dest,'msg':msg};
+        console.log(msg_to_send);
+		msg_to_send = JSON.stringify(msg_to_send);
+        writeToScreen("SENT: " + msg_to_send);
+        websocket.send(msg_to_send);
+    }
+    
+    function refresh()
+    {
+        websocket.send("getFriends");
+    }
+    
+    window.addEventListener("load", init, false); 
+</script> 
+<h2>WebSocket Test</h2> 
+<div>User:<span id="id">null</span></div>
+<div>
+    <label>Destination</label>
+    <input type="text" id="dest">
+</div>
+<div>
+    <label>Friend List</label>
+    <select id="friend"></select>
+</div>
+<div>
+<input type="text" placeholder="message to send" id="msg">
+<input type="button" value="send" onclick="sendMsg()">
+<input type="button" value="refresh" onclick="refresh()">
+</div>
+<div id="output"></div> 
+</html>
